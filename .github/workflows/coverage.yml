@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+      - name: Run with Coverage
+        run: |
+          REF=${{ github.ref }}
+          echo "BRANCH=$(echo ${REF#refs/heads/})" >> $GITHUB_ENV
+          SUMMARY="$(./gradlew -q clean check | tail -7 | head -1)"
+          COVERAGE=${SUMMARY##* }
+          echo "COVERAGE=$(echo $COVERAGE)" >> $GITHUB_ENV
+      - name: Create Coverage Badge
+        uses: schneegans/dynamic-badges-action@v1.1.0
+        if: github.event_name == 'push'
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: d68155651d9d2b84eed70947f05daba7
+          filename: coverage-test__${{ env.BRANCH }}.json
+          label: Test Coverage
+          message: ${{ env.COVERAGE }}
+          namedLogo: Kotlin
+          color: green
+      - name: Add coverage to PR
+        if: github.event_name == 'pull_request'
+        uses: madrapps/jacoco-report@v1.2
+        with:
+          paths: ${{ github.workspace }}/build/coverage/result.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: Test Coverage
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
